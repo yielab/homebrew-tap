@@ -1,0 +1,9 @@
+version: 2
+
+# The only dependencies here are the pinned GitHub Actions in the test
+# workflow. Monthly is plenty for a repository whose content is one formula.
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

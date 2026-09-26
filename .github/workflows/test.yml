@@ -1,0 +1,61 @@
+name: Test formula
+
+# The formula is generated in yielab/tack and pushed here by its release
+# workflow, so nobody reviews the diff by hand. This is the review: every push
+# and pull request taps this checkout and runs the same audit, style, install
+# and test steps Homebrew runs on its own formulae, on both OSes the formula
+# serves. A wrong digest or a broken URL fails here instead of on a user's
+# machine as a "hash mismatch" that reads like a tampered download.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  HOMEBREW_NO_ANALYTICS: "1"
+
+jobs:
+  test:
+    name: brew (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Homebrew is preinstalled on both runner images. Tapping from the local
+      # checkout (a path is a valid git URL) tests exactly the commit under
+      # review, not whatever main currently holds.
+      - name: Tap this checkout
+        run: brew tap yielab/tap "$GITHUB_WORKSPACE"
+
+      - name: Audit
+        run: brew audit --strict --online yielab/tap/tack
+
+      - name: Style
+        run: brew style yielab/tap/tack
+
+      # Linux ARM has no published archive yet; the formula's own guard covers
+      # that and neither runner is ARM Linux, so this installs for real.
+      - name: Install
+        run: brew install --verbose yielab/tap/tack
+
+      - name: Test
+        run: brew test --verbose yielab/tap/tack
+
+      - name: Version
+        run: tack --version
