@@ -48,12 +48,8 @@ jobs:
       - name: Tap this checkout
         run: brew tap yielab/tap "$GITHUB_WORKSPACE"
 
-      # Not --strict: that flag calls the formula's explicit `version` line
-      # redundant, but the line is load-bearing. Homebrew otherwise scans the
-      # version out of the URL, and on the x86_64 archives that scan yields
-      # "86.64", which mislabels the install and fails the test step below.
       - name: Audit
-        run: brew audit --online yielab/tap/tack
+        run: brew audit --strict --online yielab/tap/tack
 
       - name: Style
         run: brew style yielab/tap/tack
