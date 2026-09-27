@@ -57,3 +57,4 @@ class Tack < Formula
     assert_match version.to_s, shell_output("#{bin}/tack --version")
   end
 end
+# throwaway line: flow test, never merged
