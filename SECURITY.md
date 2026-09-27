@@ -16,3 +16,18 @@ before installing.
   `[tack] security`.
 
 Acknowledgement within 7 days; a fix is released before public details.
+
+## What protects this repository
+
+- `main` takes no direct pushes; every change is a pull request that must pass
+  the checks in `.github/workflows/test.yml`, which verify that each archive
+  the formula points at is a yielab/tack release asset with a matching digest
+  and a build-provenance attestation signed by Tack's release workflow.
+- Commits on `main` must carry a verified signature. The release automation
+  commits through the GitHub API, so its commits are signed by GitHub.
+- No account, including admins, can bypass those rules; changing them is a
+  visible change to the repository's rulesets.
+- The workflow token is read-only. The credential Tack's release workflow uses
+  to open pull requests here is a fine-grained token scoped to this one
+  repository, with contents and pull-request write access and nothing else.
+- Secret scanning with push protection and Dependabot are enabled.

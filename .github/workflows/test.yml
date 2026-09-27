@@ -1,11 +1,13 @@
 name: Test formula
 
-# The formula is generated in yielab/tack and pushed here by its release
-# workflow, so nobody reviews the diff by hand. This is the review: every push
-# and pull request taps this checkout and runs the same audit, style, install
-# and test steps Homebrew runs on its own formulae, on both OSes the formula
-# serves. A wrong digest or a broken URL fails here instead of on a user's
-# machine as a "hash mismatch" that reads like a tampered download.
+# The formula is generated in yielab/tack and lands here through a pull request
+# its release workflow opens, so nobody reviews the diff by hand. This is the
+# review, and the branch rules make it a required one: every pull request taps
+# this checkout and runs the same audit, style, install and test steps Homebrew
+# runs on its own formulae, on both OSes the formula serves, plus a provenance
+# check that the archives it points at were built by yielab/tack's own release
+# workflow. A wrong digest, a broken URL or a look-alike host fails here instead
+# of on a user's machine as a "hash mismatch" that reads like a tampered download.
 
 on:
   push:
@@ -36,12 +38,39 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # Homebrew is preinstalled on both runner images, but the Linux image
       # leaves it off PATH (the macOS one does not).
       - name: Put Homebrew on PATH (Linux)
         if: runner.os == 'Linux'
         run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+
+      # The formula may only ever point at archives yielab/tack's release
+      # workflow built. `brew audit` cannot tell a look-alike host from the
+      # real one and `brew install` only checks the digest for the platform it
+      # runs on, so this step checks every url/sha256 pair in the file: the URL
+      # is under yielab/tack's release downloads, the digest matches the bytes,
+      # and the archive carries a build-provenance attestation signed by that
+      # workflow (the same `gh attestation verify` a user can run).
+      - name: Provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pairs=$(grep -oE '(url|sha256) "[^"]+"' Formula/tack.rb | cut -d'"' -f2 | paste - -)
+          [ -n "$pairs" ] || { echo "Formula/tack.rb has no url/sha256 pairs" >&2; exit 1; }
+          while read -r url sha; do
+            case "$url" in
+              https://github.com/yielab/tack/releases/download/*) ;;
+              *) echo "url is not a yielab/tack release asset: $url" >&2; exit 1 ;;
+            esac
+            file=$(basename "$url")
+            curl -fsSL --retry 3 -o "$file" "$url"
+            echo "$sha  $file" | shasum -a 256 -c -
+            gh attestation verify "$file" --repo yielab/tack
+          done <<< "$pairs"
 
       # Tapping from the local checkout (a path is a valid git URL) tests
       # exactly the commit under review, not whatever main currently holds.

@@ -25,8 +25,23 @@ message rather than installing the wrong binary.
 published release, and pushed here by Tack's release workflow. Changes made here
 are overwritten on the next release; send them to the main repository instead.
 
-Every push and pull request here runs `brew audit --strict`, `brew style`,
-`brew install` and `brew test` on macOS and Linux.
+## How changes land
+
+`main` accepts no direct pushes, from anyone, including the repository's
+admins. Every change, human or automated, arrives as a pull request and merges
+only when the checks pass:
+
+- `brew audit --strict`, `brew style`, `brew install` and `brew test` on macOS
+  and Linux, the same steps Homebrew runs on its own formulae.
+- A provenance check: every URL in the formula must be a
+  [yielab/tack release asset](https://github.com/yielab/tack/releases), its
+  SHA-256 must match the bytes, and the archive must carry a build-provenance
+  attestation signed by Tack's release workflow (`gh attestation verify`).
+
+Commits must be signed. Tack's release workflow creates its commit through the
+GitHub API, which signs it with GitHub's key, then opens the pull request and
+lets it merge once the checks are green. Merges are squash-only and the branch
+history is linear, so `git log` on `main` is one signed commit per release.
 
 ## Issues, security, license
 
